@@ -99,7 +99,6 @@ class TaskReadNibe(threading.Thread):
       client = InfluxDBClient(host=cfg.INFLUXDB1_HOST, port=cfg.INFLUXDB1_PORT, database=cfg.INFLUXDB1_DB, timeout=1)
 
       # Build influxdb Query
-      #key = "01805-defrosting-eb101"
       key = "defrost_counter"
 
       # select last value of 01805-defrosting-eb101 from influxdb
@@ -121,10 +120,10 @@ class TaskReadNibe(threading.Thread):
       else:
         # retrieve last value from points
         for item in points:
-          logger.debug(f"Last {key} from influxdb = {item}")
           # If influxDB came online late, then add initial count
           self.__defrost_counter = self.__defrost_counter + item['last']
           self.__defrost_initialized = True
+          logger.debug(f"Last {key} from influxdb = {item}; defrost counter set to {self.__defrost_counter}")
 
     except Exception as e:
       # When influxdb is not (yet) online, just continue
@@ -263,14 +262,16 @@ class TaskReadNibe(threading.Thread):
         if self.__prev_defrost_status == 0 and self.__json_values["01805-defrosting-eb101"] == 1:
           self.__defrost_counter += 1
 
+        self.__prev_defrost_status = self.__json_values["01805-defrosting-eb101"]
+
         # Only publish when InfluxDB is online/defrost counter is initialized
         # To ensure that we do not get wrong defrost_counter data in influxdb
         if self.__defrost_initialized:
           self.__json_values["defrost_counter"] = self.__defrost_counter
         else:
+          # Check if influxdb is already online
           self.__init_defrost_counter()
 
-        self.__prev_defrost_status = self.__json_values["01805-defrosting-eb101"]
       except KeyError as key:
         logger.warning(f"Key {key} is not in self.__json_values")
       except Exception as e:

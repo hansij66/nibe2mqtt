@@ -27,9 +27,12 @@ Inspired by:
 Modified to use pyModbusTCP, so it works also under Windows
 Supports (only) S series with TCP Modbus
 
+  v1.1.0
+  Update mqtt lib for mqtt v5
+
 """
 
-__version__ = "1.0.4"
+__version__ = "1.1.0"
 __author__ = "Hans IJntema"
 __license__ = "GPLv3"
 
@@ -121,15 +124,16 @@ def main():
   t_mqtt_stopper = threading.Event()
 
   # MQTT thread
-  t_mqtt = mqtt.mqttclient(cfg.MQTT_BROKER,
-                           cfg.MQTT_PORT,
-                           cfg.MQTT_CLIENT_UNIQ,
-                           cfg.MQTT_RATE,
-                           cfg.MQTT_QOS,
-                           cfg.MQTT_USERNAME,
-                           cfg.MQTT_PASSWORD,
-                           t_mqtt_stopper,
-                           t_threads_stopper)
+  t_mqtt = mqtt.MQTTClient(mqtt_broker=cfg.MQTT_BROKER,
+                           mqtt_port=cfg.MQTT_PORT,
+                           mqtt_client_id=cfg.MQTT_CLIENT_UNIQ,
+                           mqtt_qos=cfg.MQTT_QOS,
+                           mqtt_cleansession=True,
+                           mqtt_protocol=mqtt.MQTTv5,
+                           username=cfg.MQTT_USERNAME,
+                           password=cfg.MQTT_PASSWORD,
+                           mqtt_stopper=t_mqtt_stopper,
+                           worker_threads_stopper=t_threads_stopper)
 
   t_nibe = nibe.TaskReadNibe(cfg.MODBUS_ADDRESS, t_mqtt, t_threads_stopper)
 
@@ -142,7 +146,7 @@ def main():
 
   # Set MQTT status to online and publish SW version of MQTT parser
   t_mqtt.set_status(cfg.MQTT_TOPIC_PREFIX + "/status", "online", retain=True)
-  t_mqtt.do_publish(cfg.MQTT_TOPIC_PREFIX + "/sw-version", f"main={__version__};mqtt={mqtt.__version__}", retain=True)
+  t_mqtt.do_publish(cfg.MQTT_TOPIC_PREFIX + "/sw-version", f"main={__version__}; mqtt={mqtt.__version__}", retain=True)
 
   t_nibe.join()
 
